@@ -1,0 +1,20 @@
+REPORT ydesafioxml_eg.
+
+PARAMETERS: f_path TYPE rlgrap-filename.
+
+INCLUDE: yeg_in_mvc_scr_xml,
+         yeg_in_mvc_model_xml,
+         yeg_in_mvc_view_xml,
+         yeg_in_mvc_controller_xml.
+
+DATA: lo_controller TYPE REF TO lcl_controller,
+      iv_file_path TYPE string.
+
+START-OF-SELECTION.
+
+iv_file_path = f_path.
+
+  " Instanciar o controller e executar o processamento
+  CREATE OBJECT lo_controller.
+
+  lo_controller->run( iv_file_path = iv_file_path ).

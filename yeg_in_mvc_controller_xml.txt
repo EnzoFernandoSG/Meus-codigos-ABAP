@@ -1,0 +1,24 @@
+CLASS lcl_controller DEFINITION.
+  PUBLIC SECTION.
+    METHODS:
+      run
+        IMPORTING iv_file_path TYPE string.
+  PRIVATE SECTION.
+    DATA: lo_model TYPE REF TO report_model,
+          lo_view  TYPE REF TO lcl_view.
+ENDCLASS.
+
+CLASS lcl_controller IMPLEMENTATION.
+  METHOD run.
+    " Instanciar o model e a view
+    CREATE OBJECT lo_model.
+    CREATE OBJECT lo_view.
+
+    " Carregar o XML do arquivo na view
+    DATA(lv_xml_data) = lo_view->load_xml_from_file( iv_file_path = iv_file_path ).
+
+    " Processar o XML no model
+    DATA(rt_table) = lo_model->process_xml( iv_xml_data = lv_xml_data ).
+
+  ENDMETHOD.
+ENDCLASS.

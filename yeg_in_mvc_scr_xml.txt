@@ -1,0 +1,4 @@
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR f_path.
+  CALL FUNCTION 'F4_FILENAME'
+    IMPORTING
+      file_name = f_path.

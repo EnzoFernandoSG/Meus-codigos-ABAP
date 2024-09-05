@@ -1,0 +1,143 @@
+CLASS report_model DEFINITION.
+  PUBLIC SECTION.
+    METHODS:
+      process_xml IMPORTING iv_xml_data     TYPE string
+                  RETURNING VALUE(rt_table) TYPE REF TO data.
+  PRIVATE SECTION.
+    METHODS:
+      parse_xml IMPORTING iv_xml_data        TYPE string
+                RETURNING VALUE(ro_document) TYPE REF TO if_ixml_document,
+      build_table_from_xml IMPORTING io_document     TYPE REF TO if_ixml_document
+                           RETURNING VALUE(rt_table) TYPE REF TO data.
+ENDCLASS.
+
+CLASS report_model IMPLEMENTATION.
+
+  METHOD parse_xml.
+    DATA: lo_ixml           TYPE REF TO if_ixml,
+          lo_stream_factory TYPE REF TO if_ixml_stream_factory,
+          lo_istream        TYPE REF TO if_ixml_istream,
+          lo_parser         TYPE REF TO if_ixml_parser,
+          lv_result         TYPE i.
+
+    lo_ixml = cl_ixml=>create( ).
+    lo_stream_factory = lo_ixml->create_stream_factory( ).
+    lo_istream = lo_stream_factory->create_istream_string( iv_xml_data ).
+
+    " Criar o documento XML vazio
+    ro_document = lo_ixml->create_document( ).
+
+    " Criar o parser e associar ao documento e ao stream
+    lo_parser = lo_ixml->create_parser(
+                istream = lo_istream
+                document = ro_document
+                stream_factory = lo_stream_factory ).
+
+    " Fazer o parse do XML
+    lv_result = lo_parser->parse( ).
+
+    " Verificar se o parsing foi bem-sucedido
+    IF lv_result <> 0.
+      " Exibir mensagem de erro se o parse falhar
+      CASE lv_result.
+        WHEN 1.
+          MESSAGE 'Erro: Não foi possível abrir o stream de entrada.' TYPE 'E'.
+        WHEN 2.
+          MESSAGE 'Erro: Problema na análise do documento XML.' TYPE 'E'.
+        WHEN 3.
+          MESSAGE 'Erro: Documento XML inválido.' TYPE 'E'.
+        WHEN OTHERS.
+          MESSAGE 'Erro desconhecido na análise do XML.' TYPE 'E'.
+      ENDCASE.
+
+      CLEAR ro_document. " Limpa o documento se o parse falhar
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD build_table_from_xml.
+    DATA: lo_element     TYPE REF TO if_ixml_element,
+          lo_node        TYPE REF TO if_ixml_node,
+          lo_root        TYPE REF TO if_ixml_element,
+          lo_children    TYPE REF TO if_ixml_node_list,
+          lt_fieldnames  TYPE lvc_t_fcat,
+          ls_fieldname   TYPE lvc_s_fcat,
+          lt_dynamic_tab TYPE REF TO data,
+          lt_dynamic_wa  TYPE REF TO data,
+          lv_index       TYPE i,
+          lv_fieldname   TYPE string.
+
+    FIELD-SYMBOLS: <lt_table> TYPE STANDARD TABLE,
+                   <ls_wa>    TYPE any,
+                   <fs_value> TYPE any.
+
+    " Obter o elemento raiz
+    lo_root = io_document->get_root_element( ).
+    IF lo_root IS NOT INITIAL.
+      lo_children = lo_root->get_children( ).
+
+      " Iterar pelos itens da lista de nós, usando índice
+      lv_index = 0.
+      WHILE lv_index <= lo_children->get_length( ).
+        lo_node = lo_children->get_item( lv_index ).
+        lo_element ?= lo_node.
+
+        IF lo_element IS BOUND.
+          lv_fieldname = lo_element->get_name( ).
+
+          " Verificar se o campo já existe na lista
+          READ TABLE lt_fieldnames WITH KEY fieldname = lv_fieldname TRANSPORTING NO FIELDS.
+          IF sy-subrc <> 0.
+            ls_fieldname-fieldname = lv_fieldname.
+            ls_fieldname-datatype  = 'C'.
+            ls_fieldname-outputlen = 50.
+            APPEND ls_fieldname TO lt_fieldnames.
+          ENDIF.
+        ENDIF.
+
+        lv_index = lv_index + 1.
+      ENDWHILE.
+
+      " Criar a tabela dinâmica
+      CALL METHOD cl_alv_table_create=>create_dynamic_table
+        EXPORTING
+          it_fieldcatalog = lt_fieldnames
+        IMPORTING
+          ep_table        = lt_dynamic_tab.
+
+      ASSIGN lt_dynamic_tab->* TO <lt_table>.
+      CREATE DATA lt_dynamic_wa LIKE LINE OF <lt_table>.
+      ASSIGN lt_dynamic_wa->* TO <ls_wa>.
+
+      " Preencher a tabela com os dados do XML
+      lv_index = 0.
+      WHILE lv_index <= lo_children->get_length( ).
+        lo_node = lo_children->get_item( lv_index ).
+        lo_element ?= lo_node.
+
+        IF lo_element IS BOUND.
+          CLEAR <ls_wa>.
+          ASSIGN COMPONENT lo_element->get_name( ) OF STRUCTURE <ls_wa> TO <fs_value>.
+          IF <fs_value> IS ASSIGNED.
+             <fs_value> = lo_element->get_value( ).
+          ENDIF.
+          APPEND <ls_wa> TO <lt_table>.
+        ENDIF.
+
+        lv_index = lv_index + 1.
+      ENDWHILE.
+      BREAK-POINT.
+      rt_table = lt_dynamic_tab.
+    ENDIF.
+    cl_demo_output=>display( <lt_table> ).
+  ENDMETHOD.
+
+  METHOD process_xml.
+    DATA: lo_document TYPE REF TO if_ixml_document.
+
+    lo_document = me->parse_xml( iv_xml_data ).
+    IF lo_document IS NOT INITIAL.
+      rt_table = me->build_table_from_xml( io_document = lo_document ).
+    ENDIF.
+  ENDMETHOD.
+
+ENDCLASS.
