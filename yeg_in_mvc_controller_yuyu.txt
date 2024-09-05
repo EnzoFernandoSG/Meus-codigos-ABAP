@@ -1,0 +1,42 @@
+CLASS report_controller DEFINITION.
+
+  PUBLIC SECTION.
+
+    DATA: view  TYPE REF TO report_view,
+          model TYPE REF TO report_model.
+
+    METHODS:  constructor,
+              initialization,
+              start_of_selection,
+              end_of_selection.
+
+ENDCLASS.
+
+CLASS report_controller IMPLEMENTATION.
+
+  METHOD constructor.
+
+    CREATE OBJECT model.
+    CREATE OBJECT view EXPORTING model = model.
+
+  ENDMETHOD.
+
+  METHOD initialization.
+
+    me->view->initialization( ).
+
+  ENDMETHOD.
+
+  METHOD start_of_selection.
+
+    me->model->start_of_selection( ).
+
+  ENDMETHOD.
+
+  METHOD end_of_selection.
+
+    me->view->end_of_selection( model ).
+
+  ENDMETHOD.
+
+ENDCLASS.
