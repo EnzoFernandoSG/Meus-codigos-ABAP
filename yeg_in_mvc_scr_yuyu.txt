@@ -1,6 +1,0 @@
-TABLES: ekko, ekpo.
-
-SELECTION-SCREEN BEGIN OF BLOCK a1 WITH FRAME TITLE TEXT-001.
-SELECT-OPTIONS: fil_aedt  FOR ekko-aedat OBLIGATORY DEFAULT '19901231' TO sy-datum,
-                fil_ebln FOR ekko-ebeln.
-SELECTION-SCREEN END OF BLOCK a1.
